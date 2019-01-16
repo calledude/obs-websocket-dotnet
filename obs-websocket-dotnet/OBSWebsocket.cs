@@ -178,7 +178,8 @@ namespace OBSWebsocketDotNet
         /// </summary>
         public bool IsConnected
         {
-            get {
+            get
+            {
                 return (WSConnection != null ? WSConnection.IsAlive : false);
             }
         }
@@ -204,7 +205,7 @@ namespace OBSWebsocketDotNet
         /// </summary>
         /// <param name="url">Server URL in standard URL format</param>
         /// <param name="password">Server password</param>
-        public void Connect(string url, string password)
+        public bool Connect(string url, string password = "")
         {
             if (WSConnection != null && WSConnection.IsAlive)
                 Disconnect();
@@ -212,20 +213,23 @@ namespace OBSWebsocketDotNet
             WSConnection = new WebSocket(url);
             WSConnection.WaitTime = _pWSTimeout;
             WSConnection.OnMessage += WebsocketMessageHandler;
+            WSConnection.Log.Output = (a, b) => { };
             WSConnection.OnClose += (s, e) =>
             {
-                if (Disconnected != null)
-                    Disconnected(this, e);
+                Disconnected?.Invoke(this, e);
             };
             WSConnection.Connect();
 
-            OBSAuthInfo authInfo = GetAuthInfo();
+            if (WSConnection.IsAlive)
+            {
+                OBSAuthInfo authInfo = GetAuthInfo();
 
-            if (authInfo.AuthRequired)
-                Authenticate(password, authInfo);
+                if (authInfo.AuthRequired)
+                    Authenticate(password, authInfo);
 
-            if (Connected != null)
-                Connected(this, null);
+                Connected?.Invoke(this, null);
+            }
+            return WSConnection.IsAlive;
         }
 
         /// <summary>
@@ -272,7 +276,7 @@ namespace OBSWebsocketDotNet
                     _responseHandlers.Remove(msgID);
                 }
             }
-            else if(body["update-type"] != null)
+            else if (body["update-type"] != null)
             {
                 // Handle an event
                 string eventType = body["update-type"].ToString();
@@ -371,7 +375,7 @@ namespace OBSWebsocketDotNet
                 // Throws ErrorResponseException if auth fails
                 SendRequest("Authenticate", requestFields);
             }
-            catch(ErrorResponseException)
+            catch (ErrorResponseException)
             {
                 throw new AuthFailureException();
             }
@@ -391,7 +395,7 @@ namespace OBSWebsocketDotNet
             switch (eventType)
             {
                 case "SwitchScenes":
-                    if(SceneChanged != null)
+                    if (SceneChanged != null)
                         SceneChanged(this, (string)body["scene-name"]);
                     break;
 
@@ -509,7 +513,7 @@ namespace OBSWebsocketDotNet
                     break;
 
                 case "PreviewSceneChanged":
-                    if(PreviewSceneChanged != null)
+                    if (PreviewSceneChanged != null)
                         PreviewSceneChanged(this, (string)body["scene-name"]);
                     break;
 
