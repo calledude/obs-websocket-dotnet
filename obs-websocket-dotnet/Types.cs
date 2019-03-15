@@ -305,7 +305,7 @@ namespace OBSWebsocketDotNet
         /// <summary>
         /// Total time since streaming start
         /// </summary>
-        public readonly int TotalStreamTime;
+        public readonly TimeSpan TotalStreamTime;
 
         /// <summary>
         /// Number of frames sent since streaming start
@@ -334,7 +334,7 @@ namespace OBSWebsocketDotNet
             BytesPerSec = (int)data["bytes-per-sec"];
             KbitsPerSec = (int)data["kbits-per-sec"];
             Strain = (float)data["strain"];
-            TotalStreamTime = (int)data["total-stream-time"];
+            TotalStreamTime = (TimeSpan)data["stream-timecode"];
 
             TotalFrames = (int)data["num-total-frames"];
             DroppedFrames = (int)data["num-dropped-frames"];
