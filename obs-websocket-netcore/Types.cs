@@ -473,11 +473,12 @@ namespace OBSWebsocketDotNet
         /// <returns></returns>
         public JObject ToJSON()
         {
-            var obj = new JObject();
-            obj.Add("service", ServiceName);
-            obj.Add("server", ServerUrl);
-            obj.Add("key", StreamKey);
-            return obj;
+            return new JObject
+            {
+                { "service", ServiceName },
+                { "server", ServerUrl },
+                { "key", StreamKey }
+            };
         }
     }
 
@@ -530,13 +531,14 @@ namespace OBSWebsocketDotNet
         /// <returns></returns>
         public JObject ToJSON()
         {
-            var obj = new JObject();
-            obj.Add("server", ServerAddress);
-            obj.Add("key", StreamKey);
-            obj.Add("use_auth", UseAuthentication);
-            obj.Add("username", AuthUsername);
-            obj.Add("password", AuthPassword);
-            return obj;
+            return new JObject
+            {
+                { "server", ServerAddress },
+                { "key", StreamKey },
+                { "use_auth", UseAuthentication },
+                { "username", AuthUsername },
+                { "password", AuthPassword }
+            };
         }
     }
 
@@ -633,16 +635,17 @@ namespace OBSWebsocketDotNet
         /// <returns></returns>
         public JObject ToJSON()
         {
-            var obj = new JObject();
-            obj.Add("url", URL);
-            obj.Add("is_local_file", IsLocalFile);
-            obj.Add("css", CustomCSS);
-            obj.Add("width", Width);
-            obj.Add("height", Height);
-            obj.Add("fps", FPS);
-            obj.Add("shutdown", ShutdownWhenNotVisible);
-            obj.Add("render", Visible);
-            return obj;
+            return new JObject
+            {
+                { "url", URL },
+                { "is_local_file", IsLocalFile },
+                { "css", CustomCSS },
+                { "width", Width },
+                { "height", Height },
+                { "fps", FPS },
+                { "shutdown", ShutdownWhenNotVisible },
+                { "render", Visible }
+            };
         }
     }
 

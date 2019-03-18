@@ -114,8 +114,7 @@ namespace OBSWebsocketDotNet
         public OutputStatus GetStreamingStatus()
         {
             JObject response = SendRequest("GetStreamingStatus");
-            var outputStatus = new OutputStatus(response);
-            return outputStatus;
+            return new OutputStatus(response);
         }
 
         /// <summary>
@@ -233,10 +232,12 @@ namespace OBSWebsocketDotNet
         /// <param name="sceneName">(optional) name of the scene the item belongs to</param>
         public void SetSceneItemPosition(string itemName, float x, float y, string sceneName = null)
         {
-            var requestFields = new JObject();
-            requestFields.Add("item", itemName);
-            requestFields.Add("x", x);
-            requestFields.Add("y", y);
+            var requestFields = new JObject
+            {
+                { "item", itemName },
+                { "x", x },
+                { "y", y }
+            };
 
             if (sceneName != null)
                 requestFields.Add("scene-name", sceneName);
@@ -254,11 +255,13 @@ namespace OBSWebsocketDotNet
         /// <param name="sceneName">(optional) name of the scene the item belongs to</param>
         public void SetSceneItemTransform(string itemName, float rotation = 0, float xScale = 1, float yScale = 1, string sceneName = null)
         {
-            var requestFields = new JObject();
-            requestFields.Add("item", itemName);
-            requestFields.Add("x-scale", xScale);
-            requestFields.Add("y-scale", yScale);
-            requestFields.Add("rotation", rotation);
+            var requestFields = new JObject
+            {
+                { "item", itemName },
+                { "x-scale", xScale },
+                { "y-scale", yScale },
+                { "rotation", rotation }
+            };
 
             if (sceneName != null)
                 requestFields.Add("scene-name", sceneName);
@@ -298,7 +301,7 @@ namespace OBSWebsocketDotNet
             var items = (JArray)response["scene-collections"];
 
             List<string> sceneCollections = new List<string>();
-            foreach(JObject item in items)
+            foreach (JObject item in items)
             {
                 sceneCollections.Add((string)item["sc-name"]);
             }
@@ -482,7 +485,7 @@ namespace OBSWebsocketDotNet
         {
             var requestFields = new JObject();
 
-            if(transitionDuration > -1 || transitionName != null)
+            if (transitionDuration > -1 || transitionName != null)
             {
                 var withTransition = new JObject();
 
@@ -619,11 +622,11 @@ namespace OBSWebsocketDotNet
         {
             var response = SendRequest("GetSpecialSources");
             var sources = new Dictionary<string, string>();
-            foreach(KeyValuePair<string, JToken> x in response)
+            foreach (KeyValuePair<string, JToken> x in response)
             {
                 string key = x.Key;
                 string value = (string)x.Value;
-                if(key != "request-type" && key != "message-id")
+                if (key != "request-type" && key != "message-id")
                 {
                     sources.Add(key, value);
                 }
@@ -638,10 +641,12 @@ namespace OBSWebsocketDotNet
         /// <param name="save"></param>
         public void SetStreamingSettings(StreamingService service, bool save)
         {
-            var requestFields = new JObject();
-            requestFields.Add("type", service.Type);
-            requestFields.Add("settings", service.Settings);
-            requestFields.Add("save", save);
+            var requestFields = new JObject
+            {
+                { "type", service.Type },
+                { "settings", service.Settings },
+                { "save", save }
+            };
             SendRequest("SetStreamSettings", requestFields);
         }
 

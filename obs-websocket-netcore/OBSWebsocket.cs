@@ -158,10 +158,7 @@ namespace OBSWebsocketDotNet
         {
             get
             {
-                if (WSConnection != null)
-                    return WSConnection.WaitTime;
-                else
-                    return _pWSTimeout;
+                return WSConnection?.WaitTime ?? _pWSTimeout;
             }
             set
             {
@@ -180,7 +177,7 @@ namespace OBSWebsocketDotNet
         {
             get
             {
-                return (WSConnection != null ? WSConnection.IsAlive : false);
+                return WSConnection?.IsAlive == true;
             }
         }
 
@@ -190,7 +187,7 @@ namespace OBSWebsocketDotNet
         public WebSocket WSConnection { get; private set; }
 
         private delegate void RequestCallback(OBSWebsocket sender, JObject body);
-        private Dictionary<string, TaskCompletionSource<JObject>> _responseHandlers;
+        private readonly Dictionary<string, TaskCompletionSource<JObject>> _responseHandlers;
 
         /// <summary>
         /// Constructor
@@ -207,17 +204,14 @@ namespace OBSWebsocketDotNet
         /// <param name="password">Server password</param>
         public bool Connect(string url, string password = "")
         {
-            if (WSConnection != null && WSConnection.IsAlive)
+            if (WSConnection?.IsAlive == true)
                 Disconnect();
 
             WSConnection = new WebSocket(url);
             WSConnection.WaitTime = _pWSTimeout;
             WSConnection.OnMessage += WebsocketMessageHandler;
-            WSConnection.Log.Output = (a, b) => { };
-            WSConnection.OnClose += (s, e) =>
-            {
-                Disconnected?.Invoke(this, e);
-            };
+            WSConnection.Log.Output = (__, _) => { };
+            WSConnection.OnClose += (s, e) => Disconnected?.Invoke(this, e);
             WSConnection.Connect();
 
             if (WSConnection.IsAlive)
@@ -237,14 +231,11 @@ namespace OBSWebsocketDotNet
         /// </summary>
         public void Disconnect()
         {
-            if (WSConnection != null)
-                WSConnection.Close();
-
+            WSConnection?.Close();
             WSConnection = null;
 
-            foreach (var cb in _responseHandlers)
+            foreach (var tcs in _responseHandlers.Values)
             {
-                var tcs = cb.Value;
                 tcs.TrySetCanceled();
             }
         }
@@ -395,113 +386,91 @@ namespace OBSWebsocketDotNet
             switch (eventType)
             {
                 case "SwitchScenes":
-                    if (SceneChanged != null)
-                        SceneChanged(this, (string)body["scene-name"]);
+                    SceneChanged?.Invoke(this, (string)body["scene-name"]);
                     break;
 
                 case "ScenesChanged":
-                    if (SceneListChanged != null)
-                        SceneListChanged(this, EventArgs.Empty);
+                    SceneListChanged?.Invoke(this, EventArgs.Empty);
                     break;
 
                 case "SourceOrderChanged":
-                    if (SourceOrderChanged != null)
-                        SourceOrderChanged(this, (string)body["scene-name"]);
+                    SourceOrderChanged?.Invoke(this, (string)body["scene-name"]);
                     break;
 
                 case "SceneItemAdded":
-                    if (SceneItemAdded != null)
-                        SceneItemAdded(this, (string)body["scene-name"], (string)body["item-name"]);
+                    SceneItemAdded?.Invoke(this, (string)body["scene-name"], (string)body["item-name"]);
                     break;
 
                 case "SceneItemRemoved":
-                    if (SceneItemRemoved != null)
-                        SceneItemRemoved(this, (string)body["scene-name"], (string)body["item-name"]);
+                    SceneItemRemoved?.Invoke(this, (string)body["scene-name"], (string)body["item-name"]);
                     break;
 
                 case "SceneItemVisibilityChanged":
-                    if (SceneItemVisibilityChanged != null)
-                        SceneItemVisibilityChanged(this, (string)body["scene-name"], (string)body["item-name"]);
+                    SceneItemVisibilityChanged?.Invoke(this, (string)body["scene-name"], (string)body["item-name"]);
                     break;
 
                 case "SceneCollectionChanged":
-                    if (SceneCollectionChanged != null)
-                        SceneCollectionChanged(this, EventArgs.Empty);
+                    SceneCollectionChanged?.Invoke(this, EventArgs.Empty);
                     break;
 
                 case "SceneCollectionListChanged":
-                    if (SceneCollectionListChanged != null)
-                        SceneCollectionListChanged(this, EventArgs.Empty);
+                    SceneCollectionListChanged?.Invoke(this, EventArgs.Empty);
                     break;
 
                 case "SwitchTransition":
-                    if (TransitionChanged != null)
-                        TransitionChanged(this, (string)body["transition-name"]);
+                    TransitionChanged?.Invoke(this, (string)body["transition-name"]);
                     break;
 
                 case "TransitionDurationChanged":
-                    if (TransitionDurationChanged != null)
-                        TransitionDurationChanged(this, (int)body["new-duration"]);
+                    TransitionDurationChanged?.Invoke(this, (int)body["new-duration"]);
                     break;
 
                 case "TransitionListChanged":
-                    if (TransitionListChanged != null)
-                        TransitionListChanged(this, EventArgs.Empty);
+                    TransitionListChanged?.Invoke(this, EventArgs.Empty);
                     break;
 
                 case "TransitionBegin":
-                    if (TransitionBegin != null)
-                        TransitionBegin(this, EventArgs.Empty);
+                    TransitionBegin?.Invoke(this, EventArgs.Empty);
                     break;
 
                 case "ProfileChanged":
-                    if (ProfileChanged != null)
-                        ProfileChanged(this, EventArgs.Empty);
+                    ProfileChanged?.Invoke(this, EventArgs.Empty);
                     break;
 
                 case "ProfileListChanged":
-                    if (ProfileListChanged != null)
-                        ProfileListChanged(this, EventArgs.Empty);
+                    ProfileListChanged?.Invoke(this, EventArgs.Empty);
                     break;
 
                 case "StreamStarting":
-                    if (StreamingStateChanged != null)
-                        StreamingStateChanged(this, OutputState.Starting);
+                    StreamingStateChanged?.Invoke(this, OutputState.Starting);
                     break;
 
                 case "StreamStarted":
-                    if (StreamingStateChanged != null)
-                        StreamingStateChanged(this, OutputState.Started);
+                    StreamingStateChanged?.Invoke(this, OutputState.Started);
                     break;
 
                 case "StreamStopping":
-                    if (StreamingStateChanged != null)
-                        StreamingStateChanged(this, OutputState.Stopping);
+                    StreamingStateChanged?.Invoke(this, OutputState.Stopping);
                     break;
 
                 case "StreamStopped":
-                    if (StreamingStateChanged != null)
-                        StreamingStateChanged(this, OutputState.Stopped);
+                    StreamingStateChanged?.Invoke(this, OutputState.Stopped);
                     break;
 
                 case "RecordingStarting":
-                    if (RecordingStateChanged != null)
-                        RecordingStateChanged(this, OutputState.Starting);
+                    RecordingStateChanged?.Invoke(this, OutputState.Starting);
                     break;
 
                 case "RecordingStarted":
-                    if (RecordingStateChanged != null)
-                        RecordingStateChanged(this, OutputState.Started);
+                    RecordingStateChanged?.Invoke(this, OutputState.Started);
                     break;
 
                 case "RecordingStopping":
-                    if (RecordingStateChanged != null)
-                        RecordingStateChanged(this, OutputState.Stopping);
+                    RecordingStateChanged?.Invoke(this, OutputState.Stopping);
                     break;
 
                 case "RecordingStopped":
-                    if (RecordingStateChanged != null)
-                        RecordingStateChanged(this, OutputState.Stopped);
+                    RecordingStateChanged?.Invoke(this, OutputState.Stopped);
                     break;
 
                 case "StreamStatus":
@@ -513,38 +482,31 @@ namespace OBSWebsocketDotNet
                     break;
 
                 case "PreviewSceneChanged":
-                    if (PreviewSceneChanged != null)
-                        PreviewSceneChanged(this, (string)body["scene-name"]);
+                    PreviewSceneChanged?.Invoke(this, (string)body["scene-name"]);
                     break;
 
                 case "StudioModeSwitched":
-                    if (StudioModeSwitched != null)
-                        StudioModeSwitched(this, (bool)body["new-state"]);
+                    StudioModeSwitched?.Invoke(this, (bool)body["new-state"]);
                     break;
 
                 case "ReplayStarting":
-                    if (ReplayBufferStateChanged != null)
-                        ReplayBufferStateChanged(this, OutputState.Starting);
+                    ReplayBufferStateChanged?.Invoke(this, OutputState.Starting);
                     break;
 
                 case "ReplayStarted":
-                    if (ReplayBufferStateChanged != null)
-                        ReplayBufferStateChanged(this, OutputState.Started);
+                    ReplayBufferStateChanged?.Invoke(this, OutputState.Started);
                     break;
 
                 case "ReplayStopping":
-                    if (ReplayBufferStateChanged != null)
-                        ReplayBufferStateChanged(this, OutputState.Stopping);
+                    ReplayBufferStateChanged?.Invoke(this, OutputState.Stopping);
                     break;
 
                 case "ReplayStopped":
-                    if (ReplayBufferStateChanged != null)
-                        ReplayBufferStateChanged(this, OutputState.Stopped);
+                    ReplayBufferStateChanged?.Invoke(this, OutputState.Stopped);
                     break;
 
                 case "Exiting":
-                    if (OBSExit != null)
-                        OBSExit(this, EventArgs.Empty);
+                    OBSExit?.Invoke(this, EventArgs.Empty);
                     break;
             }
         }
@@ -561,7 +523,7 @@ namespace OBSWebsocketDotNet
             byte[] textBytes = Encoding.ASCII.GetBytes(input);
             byte[] hash = sha256.ComputeHash(textBytes);
 
-            return System.Convert.ToBase64String(hash);
+            return Convert.ToBase64String(hash);
         }
 
         /// <summary>
@@ -574,14 +536,14 @@ namespace OBSWebsocketDotNet
             const string pool = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
             var random = new Random();
 
-            string result = "";
+            var result = new char[length];
             for (int i = 0; i < length; i++)
             {
                 int index = random.Next(0, pool.Length - 1);
-                result += pool[index];
+                result[i] = pool[index];
             }
 
-            return result;
+            return new string(result);
         }
     }
 }
