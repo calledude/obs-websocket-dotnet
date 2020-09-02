@@ -52,10 +52,19 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Enum\OutputState.cs" />
     <Compile Include="OBSWebsocket_Requests.cs" />
     <Compile Include="Types.cs" />
     <Compile Include="OBSWebsocket.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Types\BrowserSourceProperties.cs" />
+    <Compile Include="Types\OBSAuthInfo.cs" />
+    <Compile Include="Types\OBSScene.cs" />
+    <Compile Include="Types\OBSVersion.cs" />
+    <Compile Include="Types\OutputStatus.cs" />
+    <Compile Include="Types\SceneItem.cs" />
+    <Compile Include="Types\TransitionSettings.cs" />
+    <Compile Include="Types\VolumeInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="obs-websocket-dotnet.nuspec" />

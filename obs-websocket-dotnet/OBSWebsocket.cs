@@ -22,13 +22,15 @@
     SOFTWARE.
 */
 
+using Newtonsoft.Json.Linq;
+using OBSWebsocketDotNet.Enum;
+using OBSWebsocketDotNet.Types;
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
-using WebSocketSharp;
-using Newtonsoft.Json.Linq;
 using System.Threading.Tasks;
+using WebSocketSharp;
 
 namespace OBSWebsocketDotNet
 {
@@ -156,10 +158,7 @@ namespace OBSWebsocketDotNet
         /// </summary>
         public TimeSpan WSTimeout
         {
-            get
-            {
-                return WSConnection?.WaitTime ?? _pWSTimeout;
-            }
+            get => WSConnection?.WaitTime ?? _pWSTimeout;
             set
             {
                 _pWSTimeout = value;
@@ -168,18 +167,13 @@ namespace OBSWebsocketDotNet
                     WSConnection.WaitTime = _pWSTimeout;
             }
         }
+
         private TimeSpan _pWSTimeout;
 
         /// <summary>
         /// Current connection state
         /// </summary>
-        public bool IsConnected
-        {
-            get
-            {
-                return WSConnection?.IsAlive == true;
-            }
-        }
+        public bool IsConnected => WSConnection?.IsAlive == true;
 
         /// <summary>
         /// Underlying WebSocket connection to an obs-websocket server. Value is null when disconnected.
@@ -202,28 +196,30 @@ namespace OBSWebsocketDotNet
         /// </summary>
         /// <param name="url">Server URL in standard URL format</param>
         /// <param name="password">Server password</param>
-        public bool Connect(string url, string password = "")
+        public async Task<bool> Connect(string url, string password = "")
         {
             if (WSConnection?.IsAlive == true)
                 Disconnect();
 
-            WSConnection = new WebSocket(url);
-            WSConnection.WaitTime = _pWSTimeout;
+            WSConnection = new WebSocket(url)
+            {
+                WaitTime = _pWSTimeout
+            };
             WSConnection.OnMessage += WebsocketMessageHandler;
             WSConnection.Log.Output = (__, _) => { };
             WSConnection.OnClose += (s, e) => Disconnected?.Invoke(this, e);
             WSConnection.Connect();
 
-            if (WSConnection.IsAlive)
+            if (WSConnection?.IsAlive ?? false)
             {
-                OBSAuthInfo authInfo = GetAuthInfo();
+                var authInfo = await GetAuthInfo();
 
                 if (authInfo.AuthRequired)
-                    Authenticate(password, authInfo);
+                    await Authenticate(password, authInfo);
 
                 Connected?.Invoke(this, null);
             }
-            return WSConnection.IsAlive;
+            return WSConnection?.IsAlive ?? false;
         }
 
         /// <summary>
@@ -247,14 +243,14 @@ namespace OBSWebsocketDotNet
             if (!e.IsText)
                 return;
 
-            JObject body = JObject.Parse(e.Data);
+            var body = JObject.Parse(e.Data);
 
-            if (body["message-id"] != null)
+            if (body.ContainsKey("message-id"))
             {
                 // Handle a request :
                 // Find the response handler based on
                 // its associated message ID
-                string msgID = (string)body["message-id"];
+                var msgID = (string)body["message-id"];
                 var handler = _responseHandlers[msgID];
 
                 if (handler != null)
@@ -267,10 +263,10 @@ namespace OBSWebsocketDotNet
                     _responseHandlers.Remove(msgID);
                 }
             }
-            else if (body["update-type"] != null)
+            else if (body.ContainsKey("update-type"))
             {
                 // Handle an event
-                string eventType = body["update-type"].ToString();
+                var eventType = body["update-type"].ToString();
                 ProcessEventType(eventType, body);
             }
         }
@@ -281,7 +277,7 @@ namespace OBSWebsocketDotNet
         /// <param name="requestType">obs-websocket request type, must be one specified in the protocol specification</param>
         /// <param name="additionalFields">additional JSON fields if required by the request type</param>
         /// <returns>The server's JSON response as a JObject</returns>
-        public JObject SendRequest(string requestType, JObject additionalFields = null)
+        public async Task<JObject> SendRequest(string requestType, JObject additionalFields = null)
         {
             string messageID;
 
@@ -290,9 +286,11 @@ namespace OBSWebsocketDotNet
             while (_responseHandlers.ContainsKey(messageID));
 
             // Build the bare-minimum body for a request
-            var body = new JObject();
-            body.Add("request-type", requestType);
-            body.Add("message-id", messageID);
+            var body = new JObject
+            {
+                { "request-type", requestType },
+                { "message-id", messageID }
+            };
 
             // Add optional fields if provided
             if (additionalFields != null)
@@ -302,7 +300,7 @@ namespace OBSWebsocketDotNet
                     MergeArrayHandling = MergeArrayHandling.Union
                 };
 
-                body.Merge(additionalFields);
+                body.Merge(additionalFields, mergeSettings);
             }
 
             // Prepare the asynchronous response handler
@@ -312,15 +310,13 @@ namespace OBSWebsocketDotNet
             // Send the message and wait for a response
             // (received and notified by the websocket response handler)
             WSConnection.Send(body.ToString());
-            tcs.Task.Wait();
+            var result = await tcs.Task;
 
             if (tcs.Task.IsCanceled)
                 throw new ErrorResponseException("Request canceled");
 
             // Throw an exception if the server returned an error.
             // An error occurs if authentication fails or one if the request body is invalid.
-            var result = tcs.Task.Result;
-
             if ((string)result["status"] == "error")
                 throw new ErrorResponseException((string)result["error"]);
 
@@ -331,20 +327,20 @@ namespace OBSWebsocketDotNet
         /// Requests version info regarding obs-websocket, the API and OBS Studio
         /// </summary>
         /// <returns>Version info in an <see cref="OBSVersion"/> object</returns>
-        public OBSVersion GetVersion()
+        public async Task<OBSVersion> GetVersion()
         {
-            JObject response = SendRequest("GetVersion");
-            return new OBSVersion(response);
+            var response = await SendRequest("GetVersion");
+            return response.ToObject<OBSVersion>();
         }
 
         /// <summary>
         /// Request authentication data. You don't have to call this manually.
         /// </summary>
         /// <returns>Authentication data in an <see cref="OBSAuthInfo"/> object</returns>
-        public OBSAuthInfo GetAuthInfo()
+        public async Task<OBSAuthInfo> GetAuthInfo()
         {
-            JObject response = SendRequest("GetAuthRequired");
-            return new OBSAuthInfo(response);
+            var response = await SendRequest("GetAuthRequired");
+            return response.ToObject<OBSAuthInfo>();
         }
 
         /// <summary>
@@ -353,18 +349,20 @@ namespace OBSWebsocketDotNet
         /// <param name="password">User password</param>
         /// <param name="authInfo">Authentication data</param>
         /// <returns>true if authentication succeeds, false otherwise</returns>
-        public bool Authenticate(string password, OBSAuthInfo authInfo)
+        public async Task<bool> Authenticate(string password, OBSAuthInfo authInfo)
         {
-            string secret = HashEncode(password + authInfo.PasswordSalt);
-            string authResponse = HashEncode(secret + authInfo.Challenge);
+            var secret = HashEncode(password + authInfo.PasswordSalt);
+            var authResponse = HashEncode(secret + authInfo.Challenge);
 
-            var requestFields = new JObject();
-            requestFields.Add("auth", authResponse);
+            var requestFields = new JObject
+            {
+                { "auth", authResponse }
+            };
 
             try
             {
                 // Throws ErrorResponseException if auth fails
-                SendRequest("Authenticate", requestFields);
+                await SendRequest("Authenticate", requestFields);
             }
             catch (ErrorResponseException)
             {
@@ -381,8 +379,6 @@ namespace OBSWebsocketDotNet
         /// <param name="body">full JSON message body</param>
         protected void ProcessEventType(string eventType, JObject body)
         {
-            StreamStatus status;
-
             switch (eventType)
             {
                 case "SwitchScenes":
@@ -474,11 +470,7 @@ namespace OBSWebsocketDotNet
                     break;
 
                 case "StreamStatus":
-                    if (StreamStatus != null)
-                    {
-                        status = new StreamStatus(body);
-                        StreamStatus(this, status);
-                    }
+                    StreamStatus?.Invoke(this, new StreamStatus(body));
                     break;
 
                 case "PreviewSceneChanged":
@@ -518,12 +510,13 @@ namespace OBSWebsocketDotNet
         /// <returns></returns>
         protected string HashEncode(string input)
         {
-            var sha256 = new SHA256Managed();
+            using (var sha256 = new SHA256Managed())
+            {
+                var textBytes = Encoding.ASCII.GetBytes(input);
+                var hash = sha256.ComputeHash(textBytes);
 
-            byte[] textBytes = Encoding.ASCII.GetBytes(input);
-            byte[] hash = sha256.ComputeHash(textBytes);
-
-            return Convert.ToBase64String(hash);
+                return Convert.ToBase64String(hash);
+            }
         }
 
         /// <summary>
@@ -537,9 +530,9 @@ namespace OBSWebsocketDotNet
             var random = new Random();
 
             var result = new char[length];
-            for (int i = 0; i < length; i++)
+            for (var i = 0; i < length; i++)
             {
-                int index = random.Next(0, pool.Length - 1);
+                var index = random.Next(0, pool.Length - 1);
                 result[i] = pool[index];
             }
 
